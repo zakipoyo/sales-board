@@ -106,6 +106,7 @@
   .row .val small b{color:var(--fg);font-weight:700;font-size:12px}
   .note{padding:10px 14px 12px;color:var(--fg2);font-size:11px;line-height:1.6}
   .pay-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+  .pay-kpis .wide{grid-column:1 / -1}
   .empty{padding:26px 14px;text-align:center;color:var(--fg2);font-size:13px}
   footer{text-align:center;color:var(--fg2);font-size:10px;margin-top:16px;line-height:1.7}
 </style>
@@ -177,7 +178,7 @@
 "use strict";
 const STORE_KEY = "sales-board-pass";
 // 公開時に sales_publish.py が版（ハッシュ）に置き換える
-const PAGE_REV = "22973cccdd4f";
+const PAGE_REV = "bbd600959edd";
 let DATA = null, TAB = "acc";
 
 const $ = id => document.getElementById(id);
@@ -360,10 +361,13 @@ function viewPayments(ym){
   }
 
   let html = '<div class="pay-kpis">' +
+    '<div class="kpi wide" style="--c:var(--success)"><div class="t">振込額 合計</div>' +
+    '<div class="v">' + yen(pm.total) + '</div><div class="n">' + ymLabel(ym) + '分　振込日 ' +
+    slashDate(pm.pay_date) + '</div></div>' +
     '<div class="kpi" style="--c:var(--blue)"><div class="t">' + shareLabel + ' 合計</div>' +
     '<div class="v">' + yen(pm.share_total) + '</div><div class="n">' + ymLabel(ym) + '分</div></div>' +
     '<div class="kpi" style="--c:var(--warn)"><div class="t">差引 合計</div>' +
-    '<div class="v">' + yen(pm.diff_total) + '</div><div class="n">振込日 ' + slashDate(pm.pay_date) + '</div></div></div>';
+    '<div class="v">' + yen(pm.diff_total) + '</div><div class="n">振込額 − 2割引き</div></div></div>';
 
   html += '<div class="card"><h2>' + ymLabel(ym) + '分　アカウント別</h2>';
   DATA.accounts.forEach(a => {
@@ -380,7 +384,7 @@ function viewPayments(ym){
     html += '<div class="row"><div class="name">' + name + '</div>' +
             '<div class="val">' + (r ? yen(r.amount) : "―") + detail + '</div></div>';
   });
-  html += '<div class="row total-row"><div class="name">合計</div><div class="val">' +
+  html += '<div class="row total-row"><div class="name">合計</div><div class="val">' + yen(pm.total) +
           '<small>2割引き <b>' + yen(pm.share_total) + '</b>　差引 <b>' + yen(pm.diff_total) +
           '</b></small></div></div>';
   html += '<div class="note">右の大きい数字が振込額です。差引＝振込額 − 2割引き</div>';
@@ -390,17 +394,18 @@ function viewPayments(ym){
 function paymentHistory(P, shareLabel){
   const done = Object.keys(P.months).filter(ym => Object.keys(P.months[ym].rows || {}).length).sort();
   if (!done.length) return "";
-  let html = '<div class="card"><h2>月ごとの振込（' + shareLabel + ' / 差引）</h2>';
-  let st = 0, dt = 0;
+  let html = '<div class="card"><h2>月ごとの振込（振込額 / ' + shareLabel + ' / 差引）</h2>';
+  let t = 0, st = 0, dt = 0;
   done.slice().reverse().forEach(ym => {
     const pm = P.months[ym];
-    st += pm.share_total; dt += pm.diff_total;
+    t += pm.total; st += pm.share_total; dt += pm.diff_total;
     html += '<div class="row"><div class="name">' + ymLabel(ym) + '分<small>振込日 ' +
-      slashDate(pm.pay_date) + '</small></div><div class="val">' + yen(pm.share_total) +
-      '<small>差引 ' + yen(pm.diff_total) + '</small></div></div>';
+      slashDate(pm.pay_date) + '</small></div><div class="val">' + yen(pm.total) +
+      '<small>2割引き <b>' + yen(pm.share_total) + '</b>　差引 <b>' + yen(pm.diff_total) +
+      '</b></small></div></div>';
   });
-  html += '<div class="row total-row"><div class="name">累計</div><div class="val">' + yen(st) +
-          '<small>差引 ' + yen(dt) + '</small></div></div>';
+  html += '<div class="row total-row"><div class="name">累計</div><div class="val">' + yen(t) +
+          '<small>2割引き <b>' + yen(st) + '</b>　差引 <b>' + yen(dt) + '</b></small></div></div>';
   return html + '</div>';
 }
 
