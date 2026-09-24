@@ -175,6 +175,8 @@
 <script>
 "use strict";
 const STORE_KEY = "sales-board-pass";
+// 公開時に sales_publish.py が版（ハッシュ）に置き換える
+const PAGE_REV = "627ac057960e";
 let DATA = null, TAB = "acc";
 
 const $ = id => document.getElementById(id);
@@ -414,7 +416,21 @@ function render(){
                       : viewMonths();
 }
 
+// 古いページがキャッシュから開かれたら、最新版を読み込み直す。
+// data.json は毎回取り直しているので、そこに書かれた版と比べる。
+// URL にクエリを付けるとキャッシュを通らずに新しいページが取れる。
+function reloadIfStale(data){
+  const rev = data && data.page_rev;
+  if (!rev || rev === PAGE_REV || PAGE_REV.startsWith("__")) return false;
+  const tried = (() => { try { return sessionStorage.getItem("sales-board-rev"); } catch (_) { return null; } })();
+  if (tried === rev) return false;  // 読み直しても変わらなければ繰り返さない
+  try { sessionStorage.setItem("sales-board-rev", rev); } catch (_) {}
+  location.replace(location.pathname + "?v=" + rev);
+  return true;
+}
+
 function boot(data){
+  if (reloadIfStale(data)) return;
   DATA = data;
   const months = monthList();
   const sel = $("ym");
