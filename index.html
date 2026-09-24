@@ -178,7 +178,7 @@
 "use strict";
 const STORE_KEY = "sales-board-pass";
 // 公開時に sales_publish.py が版（ハッシュ）に置き換える
-const PAGE_REV = "bbd600959edd";
+const PAGE_REV = "83db478fe42e";
 let DATA = null, TAB = "acc";
 
 const $ = id => document.getElementById(id);
@@ -364,8 +364,10 @@ function viewPayments(ym){
     '<div class="kpi wide" style="--c:var(--success)"><div class="t">振込額 合計</div>' +
     '<div class="v">' + yen(pm.total) + '</div><div class="n">' + ymLabel(ym) + '分　振込日 ' +
     slashDate(pm.pay_date) + '</div></div>' +
-    '<div class="kpi" style="--c:var(--blue)"><div class="t">' + shareLabel + ' 合計</div>' +
+    '<div class="kpi wide" style="--c:var(--blue)"><div class="t">' + shareLabel + ' 合計</div>' +
     '<div class="v">' + yen(pm.share_total) + '</div><div class="n">' + ymLabel(ym) + '分</div></div>' +
+    '<div class="kpi" style="--c:var(--accent)"><div class="t">1人あたりの取り分</div>' +
+    '<div class="v">' + yen(pm.per_person) + '</div><div class="n">2割引き合計の半分</div></div>' +
     '<div class="kpi" style="--c:var(--warn)"><div class="t">差引 合計</div>' +
     '<div class="v">' + yen(pm.diff_total) + '</div><div class="n">振込額 − 2割引き</div></div></div>';
 
