@@ -97,6 +97,8 @@
 
   .chart{padding:12px 10px 6px}
   .chart svg{width:100%;height:120px;display:block}
+  .note{padding:10px 14px 12px;color:var(--fg2);font-size:11px;line-height:1.6}
+  .pay-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
   .empty{padding:26px 14px;text-align:center;color:var(--fg2);font-size:13px}
   footer{text-align:center;color:var(--fg2);font-size:10px;margin-top:16px;line-height:1.7}
 </style>
@@ -151,13 +153,14 @@
         <button role="tab" data-tab="acc" aria-selected="true">アカウント別</button>
         <button role="tab" data-tab="day" aria-selected="false">日別</button>
         <button role="tab" data-tab="mon" aria-selected="false">月別</button>
+        <button role="tab" data-tab="pay" aria-selected="false">振込</button>
       </div>
     </div>
 
     <div id="view"></div>
 
     <footer>
-      卸金額（サークル取り分）／毎朝の自動取得後に更新<br>
+      卸金額（サークル取り分）／毎朝の自動取得後に更新（振込は振込日の16時ごろ）<br>
       <span id="foot"></span>
     </footer>
   </section>
@@ -332,11 +335,76 @@ function viewMonths(){
   return html + '</div>';
 }
 
+// ── 振込（実際の振込額と2割引き） ──
+const slashDate = d => d ? d.replace(/-/g, "/") : "―";
+
+function viewPayments(ym){
+  const P = DATA.payments || {months: {}, rate: 0.8, exclude: []};
+  const pm = P.months[ym] || {rows: {}};
+  const rows = pm.rows || {};
+  const got = Object.keys(rows);
+  const cut = Math.round((1 - P.rate) * 100) + "%引き";
+  const ex = (P.exclude || []).join("・");
+  const cutLabel = cut + (ex ? "（" + ex + "除く）" : "");
+  const sales = monthAmounts(ym);
+
+  if (!got.length) {
+    return '<div class="card"><h2>' + ymLabel(ym) + '分の振込</h2><div class="empty">振込予定日 ' +
+      slashDate(pm.due) + '<br>当日16時ごろに自動で取得します</div></div>' + paymentHistory(P, cutLabel);
+  }
+
+  let html = '<div class="pay-kpis">' +
+    '<div class="kpi" style="--c:var(--success)"><div class="t">振込額 合計</div>' +
+    '<div class="v">' + yen(pm.total) + '</div><div class="n">振込日 ' + slashDate(pm.pay_date) + '</div></div>' +
+    '<div class="kpi" style="--c:var(--blue)"><div class="t">' + cutLabel + ' 合計</div>' +
+    '<div class="v">' + yen(pm.share_total) + '</div><div class="n">' + ymLabel(ym) + '分</div></div></div>';
+
+  html += '<div class="card"><h2>' + ymLabel(ym) + '分　アカウント別（振込額 / ' + cut + '）</h2>';
+  DATA.accounts.forEach(a => {
+    const r = rows[a];
+    let sub, val;
+    if (!r) {
+      sub = "未取得"; val = '<span class="flat">―</span>';
+    } else {
+      const s = sales[a];
+      sub = r.carry_over ? '<span class="down">次月繰越 ' + yen(r.carry_over) + '</span>'
+          : (s !== undefined ? "卸金額 " + yen(s) + "　差引 " + yen(s - r.amount) : r.status);
+      val = yen(r.amount) + '<small>' + (r.share === null ? cut + " 対象外" : cut + " " + yen(r.share)) + '</small>';
+    }
+    html += '<div class="row"><div class="name">' + label(a) + '<small>' + sub + '</small></div>' +
+            '<div class="val">' + val + '</div></div>';
+  });
+  html += '<div class="row total-row"><div class="name">合計</div><div class="val">' + yen(pm.total) +
+          '<small>' + cut + " " + yen(pm.share_total) + '</small></div></div>';
+  if (pm.carry_total) {
+    html += '<div class="note">※ 次月繰越 ' + yen(pm.carry_total) + ' は翌月の振込にまわります（合計に含みません）</div>';
+  }
+  return html + '</div>' + paymentHistory(P, cutLabel);
+}
+
+function paymentHistory(P, cutLabel){
+  const done = Object.keys(P.months).filter(ym => Object.keys(P.months[ym].rows || {}).length).sort();
+  if (!done.length) return "";
+  let html = '<div class="card"><h2>月ごとの振込実績（振込額 / ' + cutLabel + '）</h2>';
+  let t = 0, st = 0;
+  done.slice().reverse().forEach(ym => {
+    const pm = P.months[ym];
+    t += pm.total; st += pm.share_total;
+    html += '<div class="row"><div class="name">' + ymLabel(ym) + '分<small>振込日 ' +
+      slashDate(pm.pay_date) + '</small></div><div class="val">' + yen(pm.total) +
+      '<small>' + yen(pm.share_total) + '</small></div></div>';
+  });
+  html += '<div class="row total-row"><div class="name">累計</div><div class="val">' + yen(t) +
+          '<small>' + yen(st) + '</small></div></div>';
+  return html + '<div class="note">振込額は卸金額から手数料等が引かれた実額（FANZA「支払情報の確認」より）</div></div>';
+}
+
 function render(){
   const ym = $("ym").value;
   renderKpi(ym);
   $("view").innerHTML = TAB === "acc" ? viewAccounts(ym)
                       : TAB === "day" ? viewDays(ym)
+                      : TAB === "pay" ? viewPayments(ym)
                       : viewMonths();
 }
 
