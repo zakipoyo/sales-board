@@ -69,6 +69,12 @@
   .tabs button{flex:1;border:0;background:transparent;color:var(--fg2);
     padding:8px 4px;border-radius:8px;font-size:13px}
   .tabs button[aria-selected=true]{background:var(--accent);color:#fff;font-weight:700}
+  .tabs button,.icon-btn{white-space:nowrap}
+  /* 狭い画面ではタブ4つが収まらないので、月の選択とタブを2段にする */
+  @media (max-width:440px){
+    .bar{flex-wrap:wrap}
+    .bar select,.bar .tabs{flex:1 1 100%}
+  }
 
   /* ── 一覧 ── */
   .card{background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);
