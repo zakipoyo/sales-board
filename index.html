@@ -178,7 +178,7 @@
 "use strict";
 const STORE_KEY = "sales-board-pass";
 // 公開時に sales_publish.py が版（ハッシュ）に置き換える
-const PAGE_REV = "81085961b31a";
+const PAGE_REV = "ed18262063c1";
 let DATA = null, TAB = "acc";
 
 const $ = id => document.getElementById(id);
@@ -372,7 +372,7 @@ function viewPayments(ym){
     '<div class="v">' + yen(pm.diff_total) + '</div><div class="n">振込額 − 2割引き</div></div></div>';
 
   (pm.groups || []).forEach(g => {
-    html += '<div class="card"><h2>' + ymLabel(ym) + '分　' + g.name + ' の合計</h2>' +
+    html += '<div class="card"><h2>' + ymLabel(ym) + '分　' + g.name + '</h2>' +
       '<div class="row"><div class="name">振込額 合計</div><div class="val">' + yen(g.total) + '</div></div>' +
       '<div class="row"><div class="name">2割引き 合計</div><div class="val">' + yen(g.share_total) + '</div></div>' +
       '<div class="row"><div class="name">差引 合計</div><div class="val">' + yen(g.diff_total) + '</div></div>' +
