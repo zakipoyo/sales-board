@@ -139,9 +139,6 @@
   .frow.hl.p2 b{color:#b980f0}
   .frow.owner b{color:var(--warn)}
   .fcnum{opacity:.85}
-  .paid{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--fg2);margin-top:5px}
-  .paid input{width:16px;height:16px;margin:0}
-  .paid.on{color:var(--success)}
   footer{text-align:center;color:var(--fg2);font-size:10px;margin-top:16px;line-height:1.7}
 </style>
 </head>
@@ -216,7 +213,7 @@
 "use strict";
 const STORE_KEY = "sales-board-pass";
 // 公開時に sales_publish.py が版（ハッシュ）に置き換える
-const PAGE_REV = "c35f843e4309";
+const PAGE_REV = "03be75fdaef9";
 let DATA = null, TAB = "acc";
 
 const $ = id => document.getElementById(id);
@@ -455,10 +452,6 @@ function payDefaultYm(){
   return ok.length ? ok[ok.length - 1] : null;
 }
 
-// 支払済みチェック（この端末だけに保存）
-const paidKey = (ym, a) => "sales-board-paid:" + ym + ":" + a;
-const isPaid = (ym, a) => { try { return localStorage.getItem(paidKey(ym, a)) === "1"; } catch (_) { return false; } };
-
 function statusHtml(ym, pm, rate){
   const pct = rate ? (rate * 100).toFixed(1) : null;
   if (pm.kind === "confirmed") {
@@ -523,11 +516,7 @@ function viewPayments(ym){
       '</div>';
   });
 
-  // アカウント別（確定済みの月は「支払済」チェック付き）
-  const owners = DATA.accounts.filter(a => rows[a] && rows[a].diff);
-  const done = owners.filter(a => isPaid(ym, a)).length;
-  html += '<div class="card"><h2>' + ymLabel(ym) + '分　アカウント別' + kindBadge(pm) +
-          (!fc && owners.length ? '　支払済 ' + done + '/' + owners.length : '') + '</h2>';
+  html += '<div class="card"><h2>' + ymLabel(ym) + '分　アカウント別' + kindBadge(pm) + '</h2>';
   DATA.accounts.forEach(a => {
     const r = rows[a];
     let name = label(a), detail;
@@ -540,11 +529,6 @@ function viewPayments(ym){
     } else {
       detail = '<small>自分達の取り分 <b>' + yen2(r.share) + '</b><br>アカウント主に支払う <b>' +
                yen2(r.diff) + '</b></small>';
-      if (!fc && r.diff) {
-        const on = isPaid(ym, a);
-        detail += '<label class="paid' + (on ? " on" : "") + '"><input type="checkbox" data-paid="' + a + '"' +
-                  (on ? " checked" : "") + '>支払済</label>';
-      }
     }
     html += '<div class="row"><div class="name">' + name + '</div>' +
             '<div class="val">' + (r ? yen2(r.amount) : "―") + detail + '</div></div>';
@@ -552,8 +536,7 @@ function viewPayments(ym){
   html += '<div class="row total-row"><div class="name">合計</div><div class="val">' + yen2(pm.total) +
           '<small>自分達の取り分 <b>' + yen2(pm.share_total) + '</b><br>アカウント主に支払う <b>' +
           yen2(pm.diff_total) + '</b></small></div></div>';
-  html += '<div class="note">右の大きい数字が' + L_PAID + (fc ? "（予想）" : "") + 'です。' +
-          (fc ? "" : "「支払済」のチェックはこの端末だけに保存されます。") + '</div>';
+  html += '<div class="note">右の大きい数字が' + L_PAID + (fc ? "（予想）" : "") + 'です。</div>';
   return html + '</div>' + paymentHistory(P);
 }
 
@@ -637,15 +620,6 @@ $("lockForm").addEventListener("submit", async e => {
 });
 
 $("ym").addEventListener("change", render);
-$("view").addEventListener("change", e => {
-  const a = e.target && e.target.dataset && e.target.dataset.paid;
-  if (!a) return;
-  try {
-    const k = paidKey($("ym").value, a);
-    if (e.target.checked) localStorage.setItem(k, "1"); else localStorage.removeItem(k);
-  } catch (_) {}
-  render();
-});
 document.querySelectorAll(".tabs button").forEach(b => {
   b.addEventListener("click", () => {
     document.querySelectorAll(".tabs button")
