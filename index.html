@@ -108,6 +108,40 @@
   .pay-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
   .pay-kpis .wide{grid-column:1 / -1}
   .empty{padding:26px 14px;text-align:center;color:var(--fg2);font-size:13px}
+  .caption{color:var(--fg2);font-size:10px;margin:-6px 2px 12px}
+  .n .up,.n .down,.n .flat{font-weight:700}
+  .row .val small.cmp{font-size:11px}
+  .wkd-sat{color:var(--blue)} .wkd-sun{color:#ff8c42}
+  .legend{display:flex;flex-wrap:wrap;gap:4px 12px;padding:0 14px 10px;font-size:10px;color:var(--fg2)}
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:0}
+  .legend b{color:var(--fg)}
+
+  /* 振込：予想/確定 */
+  .badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;
+    vertical-align:1px;margin-left:6px}
+  .b-conf{background:rgba(0,217,160,.16);color:var(--success)}
+  .b-fc{background:rgba(255,193,7,.16);color:var(--warn)}
+  .status{padding:12px 14px}
+  .status .head{font-size:15px;font-weight:700}
+  .status .desc{font-size:11px;color:var(--fg2);margin-top:4px;line-height:1.6}
+  .status.fc{background:rgba(255,193,7,.08)}
+  .status.conf{background:rgba(0,217,160,.08)}
+  .frow{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:10px 14px;border-top:1px solid #1e2b4d}
+  .frow .k{font-size:13px;min-width:0}
+  .frow .k small{display:block;font-size:10px;color:var(--fg2);margin-top:2px}
+  .frow .k .tw{color:#5a6a95;margin-right:5px}
+  .frow b{font-size:16px;white-space:nowrap}
+  .frow.top b{font-size:24px;color:var(--success)}
+  .frow.l1{padding-left:18px} .frow.l2{padding-left:36px}
+  .frow.hl{background:#131d38}
+  .frow.hl b{font-size:20px;color:var(--accent)}
+  .frow.hl.p2 b{color:#b980f0}
+  .frow.owner b{color:var(--warn)}
+  .fcnum{opacity:.85}
+  .paid{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--fg2);margin-top:5px}
+  .paid input{width:16px;height:16px;margin:0}
+  .paid.on{color:var(--success)}
   footer{text-align:center;color:var(--fg2);font-size:10px;margin-top:16px;line-height:1.7}
 </style>
 </head>
@@ -140,19 +174,22 @@
       <button class="icon-btn" id="reload">🔄 更新</button>
     </header>
 
-    <div class="kpis">
-      <div class="kpi" style="--c:var(--success)">
-        <div class="t">今までの累計</div><div class="v" id="kTotal">―</div><div class="n" id="nTotal"></div>
+    <div id="salesKpis">
+      <div class="kpis">
+        <div class="kpi" style="--c:var(--success)">
+          <div class="t" id="tTotal">累計売上</div><div class="v" id="kTotal">―</div><div class="n" id="nTotal"></div>
+        </div>
+        <div class="kpi" style="--c:var(--accent)">
+          <div class="t" id="tMonth">月の売上</div><div class="v" id="kMonth">―</div><div class="n" id="nMonth"></div>
+        </div>
+        <div class="kpi" style="--c:var(--warn)">
+          <div class="t" id="tDay">最新日の売上</div><div class="v" id="kDay">―</div><div class="n" id="nDay"></div>
+        </div>
+        <div class="kpi" style="--c:var(--blue)">
+          <div class="t" id="tAvg">1日平均</div><div class="v" id="kAvg">―</div><div class="n" id="nAvg"></div>
+        </div>
       </div>
-      <div class="kpi" style="--c:var(--accent)">
-        <div class="t">当月合計</div><div class="v" id="kMonth">―</div><div class="n" id="nMonth"></div>
-      </div>
-      <div class="kpi" style="--c:var(--warn)">
-        <div class="t">最新日の合計</div><div class="v" id="kDay">―</div><div class="n" id="nDay"></div>
-      </div>
-      <div class="kpi" style="--c:var(--blue)">
-        <div class="t">当月の日平均</div><div class="v" id="kAvg">―</div><div class="n" id="nAvg"></div>
-      </div>
+      <div class="caption">※ 売上はすべて卸金額（実際の入金額は「振込」タブ）</div>
     </div>
 
     <div class="bar">
@@ -168,7 +205,8 @@
     <div id="view"></div>
 
     <footer>
-      卸金額（サークル取り分）／毎朝の自動取得後に更新（振込は振込日の16時ごろ）<br>
+      売上＝卸金額（サークル取り分）。毎朝の自動取得後に更新<br>
+      振込は振込日の16時ごろに実額を取得して「確定」になります<br>
       <span id="foot"></span>
     </footer>
   </section>
@@ -178,7 +216,7 @@
 "use strict";
 const STORE_KEY = "sales-board-pass";
 // 公開時に sales_publish.py が版（ハッシュ）に置き換える
-const PAGE_REV = "066fea0b2fd5";
+const PAGE_REV = "c35f843e4309";
 let DATA = null, TAB = "acc";
 
 const $ = id => document.getElementById(id);
@@ -201,20 +239,9 @@ function prevYm(ym){
   const y = +ym.slice(0, 4), m = +ym.slice(5, 7);
   return m === 1 ? (y - 1) + "-12" : y + "-" + String(m - 1).padStart(2, "0");
 }
-function momRatio(ym, acc){
-  const pv = prevYm(ym);
-  const base = acc ? (monthAmounts(pv)[acc] || 0) : monthTotal(pv);
-  const now  = acc ? (monthAmounts(ym)[acc] || 0) : monthTotal(ym);
-  return base ? (now - base) / base * 100 : null;
-}
 function dayAverage(ym){
   const days = daysOfMonth(ym);
   return days.length ? Math.round(monthTotal(ym) / days.length) : 0;
-}
-function momHtml(v){
-  if (v === null) return '<small class="flat">前月比 ―</small>';
-  const cls = v > 0 ? "up" : (v < 0 ? "down" : "flat");
-  return '<small class="' + cls + '">前月比 ' + (v > 0 ? "+" : "") + v.toFixed(1) + "%</small>";
 }
 const color = i => ["#e94560","#00d9a0","#ffc107","#4d96ff","#b980f0","#ff8c42","#2ec4b6",
                    "#f06595","#74c0fc","#a9e34b"][i % 10];
@@ -239,202 +266,322 @@ async function loadData(pass){
   return await decrypt(await res.json(), pass);
 }
 
+// ── 月の途中かどうか・前月との比較 ──
+function monthEnd(ym){
+  const y = +ym.slice(0, 4), m = +ym.slice(5, 7);
+  return ym + "-" + String(new Date(y, m, 0).getDate()).padStart(2, "0");
+}
+const daysInMonth = ym => +monthEnd(ym).slice(8);
+const isComplete = ym => !!DATA.latest_date && DATA.latest_date >= monthEnd(ym);
+const md = d => +d.slice(5, 7) + "/" + +d.slice(8, 10);
+const wdOf = d => WD[(new Date(d + "T00:00:00").getDay() + 6) % 7];
+const wdClass = d => { const w = new Date(d + "T00:00:00").getDay();
+                       return w === 6 ? "wkd-sat" : w === 0 ? "wkd-sun" : ""; };
+const dayAmount = (d, acc) => acc ? (dayAmounts(d)[acc] || 0) : dayTotal(d);
+
+// 前月との比較。月の途中は「前月の同じ日まで」と比べる（月初に大きなマイナスにならないように）
+function compare(ym, acc){
+  const pv = prevYm(ym);
+  let base, now, text;
+  if (isComplete(ym)) {
+    base = acc ? (monthAmounts(pv)[acc] || 0) : monthTotal(pv);
+    now  = acc ? (monthAmounts(ym)[acc] || 0) : monthTotal(ym);
+    text = "前月比";
+  } else {
+    const days = daysOfMonth(ym);
+    if (!days.length || !DATA.daily[pv + "-01"]) return {v: null, text: "前月同期比"};
+    const n = +days[days.length - 1].slice(8);
+    now = days.reduce((s, d) => s + dayAmount(d, acc), 0);
+    base = daysOfMonth(pv).filter(d => +d.slice(8) <= n).reduce((s, d) => s + dayAmount(d, acc), 0);
+    text = "前月同期比";
+  }
+  return {v: base ? (now - base) / base * 100 : null, text};
+}
+function cmpHtml(c, short){
+  if (!c || c.v === null) return '<span class="flat">' + (short ? "" : c.text + " ―") + '</span>';
+  const cls = c.v > 0 ? "up" : (c.v < 0 ? "down" : "flat");
+  const num = (c.v > 0 ? "+" : "") + c.v.toFixed(short ? 0 : 1) + "%";
+  return (short ? c.text + " " : c.text + " ") + '<span class="' + cls + '">' + num + '</span>';
+}
+// 月の途中なら、1日平均×その月の日数で月末の見込み
+const monthProjection = ym => isComplete(ym) ? null : dayAverage(ym) * daysInMonth(ym);
+
 // ── 画面 ──
 function renderKpi(ym){
-  const latest = DATA.latest_date;
+  const months = monthList(), latest = DATA.latest_date;
+  $("tTotal").textContent = "累計売上（全期間）";
   $("kTotal").textContent = yen(grandTotal());
-  $("nTotal").textContent = monthList().length + "ヶ月分の合計";
+  $("nTotal").textContent = months.length ? ymLabel(months[0]) + "〜" + ymLabel(months[months.length - 1]) +
+                            "（" + months.length + "ヶ月）" : "";
+
+  $("tMonth").textContent = ymLabel(ym) + " の売上" + (isComplete(ym) ? "" : "（途中）");
   $("kMonth").textContent = yen(monthTotal(ym));
-  const m = momRatio(ym);
-  $("nMonth").textContent = ymLabel(ym) + "　前月比 " +
-    (m === null ? "―" : (m > 0 ? "+" : "") + m.toFixed(1) + "%");
-  $("kDay").textContent = latest ? yen(dayTotal(latest)) : "―";
-  $("nDay").textContent = (latest || "―") + " 分";
+  $("nMonth").innerHTML = cmpHtml(compare(ym));
+
+  if (latest) {
+    $("tDay").textContent = md(latest) + "（" + wdOf(latest) + "）の売上";
+    $("kDay").textContent = yen(dayTotal(latest));
+    const all = Object.keys(DATA.daily).sort(), i = all.indexOf(latest);
+    $("nDay").textContent = i > 0 ? "最新の取得日／前日 " + yen(dayTotal(all[i - 1])) : "最新の取得日";
+  } else {
+    $("tDay").textContent = "最新日の売上"; $("kDay").textContent = "―"; $("nDay").textContent = "";
+  }
+
+  $("tAvg").textContent = +ym.slice(5, 7) + "月の1日平均";
   $("kAvg").textContent = yen(dayAverage(ym));
-  $("nAvg").textContent = daysOfMonth(ym).length + "日分から算出";
+  const proj = monthProjection(ym);
+  $("nAvg").textContent = proj === null ? daysOfMonth(ym).length + "日分から算出"
+                                        : "このペースだと月末 " + yen(proj);
 }
 
 function viewAccounts(ym){
   const month = monthAmounts(ym), total = monthTotal(ym);
   const top = Math.max(...DATA.accounts.map(a => month[a] || 0), 1);
   const days = Math.max(daysOfMonth(ym).length, 1);
-  let html = '<div class="card"><h2>' + ymLabel(ym) + ' のアカウント別</h2>';
+  let html = '<div class="card"><h2>' + ymLabel(ym) + ' のアカウント別売上' +
+             (isComplete(ym) ? "" : "（" + md(daysOfMonth(ym).slice(-1)[0] || ym + "-01") + "まで）") + '</h2>';
   DATA.accounts.forEach((a, i) => {
     const v = month[a] || 0;
     const share = total ? (v / total * 100).toFixed(1) : "0.0";
     html += '<div class="row"><div class="name">' + label(a) +
-      '<small>累計 ' + yen(accountTotal(a)) + '　/　日平均 ' + yen(v / days) + '</small>' +
+      '<small>1日平均 ' + yen(v / days) + '　全期間 ' + yen(accountTotal(a)) + '</small>' +
       '<div class="barline"><i style="width:' + (v / top * 100) + '%;background:' + color(i) + '"></i></div>' +
-      '</div><div class="val">' + yen(v) + '<small>' + share + '% ' +
-      (momRatio(ym, a) === null ? "" :
-        (momRatio(ym, a) > 0 ? "▲" : momRatio(ym, a) < 0 ? "▼" : "") +
-        Math.abs(momRatio(ym, a)).toFixed(0) + "%") + '</small></div></div>';
+      '</div><div class="val">' + yen(v) + '<small>全体の ' + share + '%</small>' +
+      '<small class="cmp">' + cmpHtml(compare(ym, a), true) + '</small></div></div>';
   });
   html += '<div class="row total-row"><div class="name">合計</div>' +
-          '<div class="val">' + yen(total) + momHtml(momRatio(ym)) + '</div></div></div>';
-  return html;
+          '<div class="val">' + yen(total) + '<small class="cmp">' + cmpHtml(compare(ym)) +
+          '</small></div></div>';
+  html += '<div class="note">前月比：前月1ヶ月分との比較。月の途中は「前月同期比」＝前月の同じ日までとの比較です</div>';
+  return html + '</div>';
 }
 
 function sparkline(days){
   if (!days.length) return "";
-  const top = Math.max(...days.map(dayTotal), 1);
+  const totals = days.map(dayTotal);
+  const top = Math.max(...totals, 1);
+  const avg = totals.reduce((a, b) => a + b, 0) / totals.length;
   const w = 100 / days.length;
   let bars = "";
   days.forEach((d, i) => {
-    const h = dayTotal(d) / top * 100;
-    const last = i === days.length - 1;
-    bars += '<rect x="' + (i * w + w * 0.18) + '" y="' + (100 - h) + '" width="' + (w * 0.64) +
-            '" height="' + Math.max(h, 1) + '" fill="' + (last ? "#ff6b6b" : "#e94560") +
-            '" rx="0.6"></rect>';
+    const h = totals[i] / top * 92;
+    const cls = wdClass(d);
+    const fill = cls === "wkd-sat" ? "#4d96ff" : cls === "wkd-sun" ? "#ff8c42" : "#e94560";
+    bars += '<rect x="' + (i * w + w * 0.15) + '" y="' + (100 - h) + '" width="' + (w * 0.7) +
+            '" height="' + Math.max(h, 1) + '" fill="' + fill + '" rx="0.6"></rect>';
   });
-  return '<div class="chart"><svg viewBox="0 0 100 100" preserveAspectRatio="none">' +
-         bars + '</svg></div>';
+  const ay = 100 - avg / top * 92;
+  bars += '<line x1="0" x2="100" y1="' + ay + '" y2="' + ay + '" stroke="#eaeaea" stroke-opacity=".55"' +
+          ' stroke-dasharray="2 1.5" vector-effect="non-scaling-stroke" stroke-width="1"></line>';
+  const best = days[totals.indexOf(Math.max(...totals))];
+  return '<div class="chart"><svg viewBox="0 0 100 100" preserveAspectRatio="none">' + bars + '</svg></div>' +
+    '<div class="legend"><span><i style="background:#e94560"></i>平日</span>' +
+    '<span><i style="background:#4d96ff"></i>土</span><span><i style="background:#ff8c42"></i>日</span>' +
+    '<span>┄ 平均 <b>' + yen(avg) + '</b></span><span>最高 <b>' + md(best) + ' ' + yen(dayTotal(best)) +
+    '</b></span></div>';
 }
 
 function viewDays(ym){
   const days = daysOfMonth(ym);
   if (!days.length) return '<div class="card"><div class="empty">この月のデータはまだありません</div></div>';
-  let html = '<div class="card"><h2>' + ymLabel(ym) + ' の日ごとの合計（新しい順・タップで内訳）</h2>' +
+  let html = '<div class="card"><h2>' + ymLabel(ym) + ' の日ごとの売上（新しい順・タップで内訳）</h2>' +
              sparkline(days);
   days.slice().reverse().forEach(d => {
     const per = dayAmounts(d);
-    const dt = new Date(d + "T00:00:00");
-    const wd = WD[(dt.getDay() + 6) % 7];
     let inner = "";
     DATA.accounts.forEach(a => {
       inner += '<div><span>' + label(a) + '</span><b>' + yen(per[a] || 0) + '</b></div>';
     });
     html += '<details class="day"><summary><div class="row">' +
-      '<div class="name"><span class="chev">▶</span> ' + d.slice(5).replace("-", "/") +
-      '（' + wd + '）</div><div class="val">' + yen(dayTotal(d)) + '</div></div></summary>' +
+      '<div class="name"><span class="chev">▶</span> <span class="' + wdClass(d) + '">' + md(d) +
+      '（' + wdOf(d) + '）</span></div><div class="val">' + yen(dayTotal(d)) + '</div></div></summary>' +
       '<div class="breakdown">' + inner + '</div></details>';
   });
   const total = days.reduce((s, d) => s + dayTotal(d), 0);
+  const proj = monthProjection(ym);
   html += '<div class="row total-row"><div class="name">合計（' + days.length + '日）</div>' +
-    '<div class="val">' + yen(total) + '<small>1日平均 ' + yen(total / days.length) +
-    '</small></div></div></div>';
+    '<div class="val">' + yen(total) + '<small>1日平均 ' + yen(total / days.length) + '</small>' +
+    (proj === null ? '' : '<small>このペースだと月末 ' + yen(proj) + '</small>') + '</div></div></div>';
   return html;
 }
 
 function viewMonths(){
   const months = monthList();
-  let html = '<div class="card"><h2>月ごとの合計と累計</h2>';
+  let html = '<div class="card"><h2>月ごとの売上と累計</h2>';
   const top = Math.max(...months.map(monthTotal), 1);
   let running = 0;
   months.forEach(ym => {
     running += monthTotal(ym);
+    const proj = monthProjection(ym);
+    const days = daysOfMonth(ym);
     html += '<div class="row"><div class="name">' + ymLabel(ym) +
-      '<small>累計 ' + yen(running) + '</small>' +
+      (proj === null ? '' : '<span class="badge b-fc">途中</span>') +
+      '<small>累計 ' + yen(running) +
+      (proj === null ? '' : '　' + md(days[days.length - 1]) + 'まで／月末見込み ' + yen(proj)) + '</small>' +
       '<div class="barline"><i style="width:' + (monthTotal(ym) / top * 100) +
       '%;background:#00d9a0"></i></div></div>' +
-      '<div class="val">' + yen(monthTotal(ym)) + momHtml(momRatio(ym)) + '</div></div>';
+      '<div class="val">' + yen(monthTotal(ym)) + '<small class="cmp">' + cmpHtml(compare(ym), true) +
+      '</small></div></div>';
   });
-  html += '<div class="row total-row"><div class="name">今までの累計</div>' +
+  html += '<div class="row total-row"><div class="name">全期間の累計</div>' +
           '<div class="val">' + yen(grandTotal()) + '</div></div></div>';
 
-  html += '<div class="card"><h2>アカウント別の累計</h2>';
+  html += '<div class="card"><h2>アカウント別の累計（全期間）</h2>';
   const gt = grandTotal();
   const tops = Math.max(...DATA.accounts.map(accountTotal), 1);
   DATA.accounts.forEach((a, i) => {
     const v = accountTotal(a);
     html += '<div class="row"><div class="name">' + label(a) +
       '<div class="barline"><i style="width:' + (v / tops * 100) + '%;background:' + color(i) +
-      '"></i></div></div><div class="val">' + yen(v) + '<small>' +
+      '"></i></div></div><div class="val">' + yen(v) + '<small>全体の ' +
       (gt ? (v / gt * 100).toFixed(1) : "0.0") + '%</small></div></div>';
   });
   return html + '</div>';
 }
 
-// ── 振込（入金額・2割引いた残金・アカウント主に支払う金額） ──
+// ── 振込（予想 → 確定） ──
 const slashDate = d => d ? d.replace(/-/g, "/") : "―";
 const L_PAID = "入金額", L_SHARE = "2割引いた残金（自分達の取り分）", L_DIFF = "アカウント主に支払う金額";
+const payInfo = () => DATA.payments || {months: {}, exclude: []};
+const kindBadge = pm => pm.kind === "confirmed" ? '<span class="badge b-conf">確定</span>'
+                      : pm.kind === "forecast" ? '<span class="badge b-fc">' +
+                        (pm.complete ? "予想" : "途中予想") + '</span>' : "";
+
+// 振込タブを開いたときの月：確定済みか、月末までそろった予想のうち一番新しい月
+function payDefaultYm(){
+  const M = payInfo().months;
+  const ok = Object.keys(M).filter(ym => M[ym].kind === "confirmed" ||
+                                         (M[ym].kind === "forecast" && M[ym].complete)).sort();
+  return ok.length ? ok[ok.length - 1] : null;
+}
+
+// 支払済みチェック（この端末だけに保存）
+const paidKey = (ym, a) => "sales-board-paid:" + ym + ":" + a;
+const isPaid = (ym, a) => { try { return localStorage.getItem(paidKey(ym, a)) === "1"; } catch (_) { return false; } };
+
+function statusHtml(ym, pm, rate){
+  const pct = rate ? (rate * 100).toFixed(1) : null;
+  if (pm.kind === "confirmed") {
+    let desc = "振込日 " + slashDate(pm.pay_date) + " に入金済みの実額です";
+    if (pm.forecast_total !== null && pm.forecast_total !== undefined) {
+      const d = pm.total - pm.forecast_total;
+      desc += "<br>確定前の予想 " + yen(pm.forecast_total) + " との差 " + (d >= 0 ? "+" : "−") +
+              Math.abs(d).toLocaleString("ja-JP") + "円";
+    }
+    return '<div class="status conf"><div class="head">✅ ' + ymLabel(ym) + '分　確定</div>' +
+           '<div class="desc">' + desc + '</div></div>';
+  }
+  const head = pm.complete ? "🔮 " + ymLabel(ym) + "分　振込予想"
+                           : "🔮 " + ymLabel(ym) + "分　途中経過の予想（" + md(pm.as_of) + "までの売上）";
+  let desc = "振込予定日 " + slashDate(pm.due) + "。これまでの実績から、売上（卸金額）の " + pct +
+             "% が入金される計算です。振込日の16時ごろに実額を取得して「確定」になります";
+  if (!pm.complete) desc += "<br>月末までの売上がそろう翌月1日の昼ごろに予想が固まります";
+  return '<div class="status fc"><div class="head">' + head + '</div><div class="desc">' + desc + '</div></div>';
+}
 
 function viewPayments(ym){
-  const P = DATA.payments || {months: {}, exclude: []};
-  const pm = P.months[ym] || {rows: {}};
+  const P = payInfo();
+  const pm = P.months[ym] || {rows: {}, kind: "none"};
   const rows = pm.rows || {};
   const ex = (P.exclude || []).join("・");
   const exNote = ex ? "（" + ex + "除く）" : "";
+  const fc = pm.kind === "forecast";
+  const yen2 = n => fc ? '<span class="fcnum">' + yen(n) + '</span>' : yen(n);
 
-  if (!Object.keys(rows).length) {
-    return '<div class="card"><h2>' + ymLabel(ym) + '分の入金</h2><div class="empty">振込予定日 ' +
-      slashDate(pm.due) + '<br>当日16時ごろに自動で取得します</div></div>' + paymentHistory(P);
+  if (pm.kind === "none" || !Object.keys(rows).length) {
+    return '<div class="card"><h2>' + ymLabel(ym) + '分の振込</h2><div class="empty">振込予定日 ' +
+      slashDate(pm.due) + '<br>まだ予想を出せるデータがありません</div></div>' + paymentHistory(P);
   }
 
+  // 分配の流れ：入金額 → アカウント主に支払う／自分達の取り分 → 1人あたり／神崎の取り分
   const pd = P.person_deduct;
-  const pdKpi = !pd ? "" :
-    '<div class="kpi wide" style="--c:#b980f0"><div class="t">' + pd.name + '</div>' +
-    '<div class="v">' + (pm.deducted_person === null || pm.deducted_person === undefined
-                          ? "未取得" : yen(pm.deducted_person)) + '</div>' +
-    '<div class="n">1人あたりの取り分 − ' + pd.account + 'の自分達の取り分</div></div>';
-
-  let html = '<div class="pay-kpis">' +
-    '<div class="kpi wide" style="--c:var(--success)"><div class="t">' + L_PAID + ' 合計</div>' +
-    '<div class="v">' + yen(pm.total) + '</div><div class="n">' + ymLabel(ym) + '分　振込日 ' +
-    slashDate(pm.pay_date) + '</div></div>' +
-    '<div class="kpi wide" style="--c:var(--blue)"><div class="t">' + L_SHARE + ' 合計' + exNote + '</div>' +
-    '<div class="v">' + yen(pm.share_total) + '</div><div class="n">' + L_PAID + 'から2割を引いた残り</div></div>' +
-    '<div class="kpi wide" style="--c:var(--accent)"><div class="t">1人あたりの取り分</div>' +
-    '<div class="v">' + yen(pm.per_person) + '</div><div class="n">自分達の取り分の半分</div></div>' +
-    pdKpi +
-    '<div class="kpi wide" style="--c:var(--warn)"><div class="t">' + L_DIFF + ' 合計</div>' +
-    '<div class="v">' + yen(pm.diff_total) + '</div><div class="n">' + L_PAID + 'の2割</div></div></div>';
+  let html = '<div class="card">' + statusHtml(ym, pm, P.pay_rate) +
+    '<div class="frow top"><div class="k">' + L_PAID + ' 合計' + (fc ? "（予想）" : "") +
+      '<small>振込' + (fc ? "予定日 " + slashDate(pm.due) : "日 " + slashDate(pm.pay_date)) + '</small></div>' +
+      '<b>' + yen2(pm.total) + '</b></div>' +
+    '<div class="frow l1 owner"><div class="k"><span class="tw">├</span>' + L_DIFF +
+      '<small>' + L_PAID + 'の2割</small></div><b>' + yen2(pm.diff_total) + '</b></div>' +
+    '<div class="frow l1"><div class="k"><span class="tw">└</span>' + L_SHARE +
+      '<small>' + L_PAID + 'から2割を引いた残り' + exNote + '</small></div><b>' + yen2(pm.share_total) + '</b></div>' +
+    '<div class="frow l2 hl"><div class="k"><span class="tw">├</span>1人あたりの取り分' +
+      '<small>自分達の取り分の半分</small></div><b>' + yen2(pm.per_person) + '</b></div>' +
+    (!pd ? '' :
+      '<div class="frow l2 hl p2"><div class="k"><span class="tw">└</span>' + pd.name +
+      '<small>1人あたり − ' + pd.account + 'の自分達の取り分</small></div><b>' +
+      (pm.deducted_person === null || pm.deducted_person === undefined ? "未取得" : yen2(pm.deducted_person)) +
+      '</b></div>') +
+    (pm.carry_total ? '<div class="note">次月繰越 ' + yen(pm.carry_total) + '（' +
+      (fc ? "3,000円未満のため繰越になる見込み" : "今回は振り込まれず、翌月分に足されます") + '）</div>' : '') +
+    '</div>';
 
   (pm.groups || []).forEach(g => {
-    html += '<div class="card"><h2>' + ymLabel(ym) + '分　' + g.name + '</h2>' +
-      '<div class="row"><div class="name">' + L_PAID + ' 合計</div><div class="val">' + yen(g.total) + '</div></div>' +
-      '<div class="row"><div class="name">' + L_SHARE + ' 合計</div><div class="val">' + yen(g.share_total) + '</div></div>' +
-      '<div class="row"><div class="name">' + L_DIFF + ' 合計</div><div class="val">' + yen(g.diff_total) + '</div></div>' +
+    html += '<div class="card"><h2>' + ymLabel(ym) + '分　' + g.name + kindBadge(pm) + '</h2>' +
+      '<div class="row"><div class="name">' + L_PAID + ' 合計</div><div class="val">' + yen2(g.total) + '</div></div>' +
+      '<div class="row"><div class="name">' + L_SHARE + ' 合計</div><div class="val">' + yen2(g.share_total) + '</div></div>' +
+      '<div class="row"><div class="name">' + L_DIFF + ' 合計</div><div class="val">' + yen2(g.diff_total) + '</div></div>' +
       (g.missing && g.missing.length ? '<div class="note">未取得: ' + g.missing.join("・") + '（合計に含まれていません）</div>' : '') +
       '</div>';
   });
 
-  const split = (share, diff) => '<small>自分達の取り分 <b>' + yen(share) + '</b><br>アカウント主に支払う <b>' +
-                                 yen(diff) + '</b></small>';
-  html += '<div class="card"><h2>' + ymLabel(ym) + '分　アカウント別</h2>';
+  // アカウント別（確定済みの月は「支払済」チェック付き）
+  const owners = DATA.accounts.filter(a => rows[a] && rows[a].diff);
+  const done = owners.filter(a => isPaid(ym, a)).length;
+  html += '<div class="card"><h2>' + ymLabel(ym) + '分　アカウント別' + kindBadge(pm) +
+          (!fc && owners.length ? '　支払済 ' + done + '/' + owners.length : '') + '</h2>';
   DATA.accounts.forEach(a => {
     const r = rows[a];
     let name = label(a), detail;
     if (!r) {
-      detail = '<small class="flat">未取得</small>';
+      detail = '<small class="flat">' + (fc ? "売上なし" : "未取得") + '</small>';
+    } else if (!r.amount && r.carry_over) {
+      detail = '<small class="down">次月繰越 ' + yen(r.carry_over) + '</small>';
     } else if (r.share === null) {
       detail = '<small class="flat">2割引き 対象外</small>';
     } else {
-      detail = split(r.share, r.diff);
+      detail = '<small>自分達の取り分 <b>' + yen2(r.share) + '</b><br>アカウント主に支払う <b>' +
+               yen2(r.diff) + '</b></small>';
+      if (!fc && r.diff) {
+        const on = isPaid(ym, a);
+        detail += '<label class="paid' + (on ? " on" : "") + '"><input type="checkbox" data-paid="' + a + '"' +
+                  (on ? " checked" : "") + '>支払済</label>';
+      }
     }
-    if (r && r.carry_over) name += '<small class="down">次月繰越 ' + yen(r.carry_over) + '</small>';
     html += '<div class="row"><div class="name">' + name + '</div>' +
-            '<div class="val">' + (r ? yen(r.amount) : "―") + detail + '</div></div>';
+            '<div class="val">' + (r ? yen2(r.amount) : "―") + detail + '</div></div>';
   });
-  html += '<div class="row total-row"><div class="name">合計</div><div class="val">' + yen(pm.total) +
-          split(pm.share_total, pm.diff_total) + '</div></div>';
-  html += '<div class="note">右の大きい数字が' + L_PAID + 'です。' + L_DIFF + '＝' + L_PAID + 'の2割、' +
-          '自分達の取り分＝' + L_PAID + 'から2割を引いた残り</div>';
+  html += '<div class="row total-row"><div class="name">合計</div><div class="val">' + yen2(pm.total) +
+          '<small>自分達の取り分 <b>' + yen2(pm.share_total) + '</b><br>アカウント主に支払う <b>' +
+          yen2(pm.diff_total) + '</b></small></div></div>';
+  html += '<div class="note">右の大きい数字が' + L_PAID + (fc ? "（予想）" : "") + 'です。' +
+          (fc ? "" : "「支払済」のチェックはこの端末だけに保存されます。") + '</div>';
   return html + '</div>' + paymentHistory(P);
 }
 
 function paymentHistory(P){
-  const done = Object.keys(P.months).filter(ym => Object.keys(P.months[ym].rows || {}).length).sort();
-  if (!done.length) return "";
-  let html = '<div class="card"><h2>月ごとの入金</h2>';
+  const list = Object.keys(P.months).filter(ym => P.months[ym].kind !== "none" &&
+                                                  Object.keys(P.months[ym].rows || {}).length).sort();
+  if (!list.length) return "";
+  let html = '<div class="card"><h2>月ごとの入金（予想→確定）</h2>';
   let t = 0, st = 0, dt = 0;
-  const tail = (share, diff) => '<small>自分達の取り分 <b>' + yen(share) + '</b><br>アカウント主に支払う <b>' +
-                                yen(diff) + '</b></small>';
-  done.slice().reverse().forEach(ym => {
-    const pm = P.months[ym];
-    t += pm.total; st += pm.share_total; dt += pm.diff_total;
-    html += '<div class="row"><div class="name">' + ymLabel(ym) + '分<small>振込日 ' +
-      slashDate(pm.pay_date) + '</small></div><div class="val">' + yen(pm.total) +
-      tail(pm.share_total, pm.diff_total) + '</div></div>';
+  list.slice().reverse().forEach(ym => {
+    const pm = P.months[ym], conf = pm.kind === "confirmed";
+    if (conf) { t += pm.total; st += pm.share_total; dt += pm.diff_total; }
+    html += '<div class="row"><div class="name">' + ymLabel(ym) + '分' + kindBadge(pm) + '<small>' +
+      (conf ? "振込日 " + slashDate(pm.pay_date) : "振込予定日 " + slashDate(pm.due)) + '</small></div>' +
+      '<div class="val">' + (conf ? yen(pm.total) : '<span class="fcnum">' + yen(pm.total) + '</span>') +
+      '<small>自分達の取り分 <b>' + yen(pm.share_total) + '</b><br>アカウント主に支払う <b>' +
+      yen(pm.diff_total) + '</b></small></div></div>';
   });
-  html += '<div class="row total-row"><div class="name">累計</div><div class="val">' + yen(t) +
-          tail(st, dt) + '</div></div>';
+  html += '<div class="row total-row"><div class="name">確定分の累計</div><div class="val">' + yen(t) +
+          '<small>自分達の取り分 <b>' + yen(st) + '</b><br>アカウント主に支払う <b>' + yen(dt) +
+          '</b></small></div></div>';
   return html + '</div>';
 }
 
 function render(){
   const ym = $("ym").value;
   renderKpi(ym);
+  $("salesKpis").hidden = TAB === "pay";
   $("view").innerHTML = TAB === "acc" ? viewAccounts(ym)
                       : TAB === "day" ? viewDays(ym)
                       : TAB === "pay" ? viewPayments(ym)
@@ -490,11 +637,25 @@ $("lockForm").addEventListener("submit", async e => {
 });
 
 $("ym").addEventListener("change", render);
+$("view").addEventListener("change", e => {
+  const a = e.target && e.target.dataset && e.target.dataset.paid;
+  if (!a) return;
+  try {
+    const k = paidKey($("ym").value, a);
+    if (e.target.checked) localStorage.setItem(k, "1"); else localStorage.removeItem(k);
+  } catch (_) {}
+  render();
+});
 document.querySelectorAll(".tabs button").forEach(b => {
   b.addEventListener("click", () => {
     document.querySelectorAll(".tabs button")
       .forEach(x => x.setAttribute("aria-selected", String(x === b)));
     TAB = b.dataset.tab;
+    // 振込タブは、まだ途中の月ではなく「確定」か「月末までそろった予想」の最新月を開く
+    if (TAB === "pay" && !isComplete($("ym").value)) {
+      const def = payDefaultYm();
+      if (def && monthList().includes(def)) $("ym").value = def;
+    }
     render();
   });
 });
