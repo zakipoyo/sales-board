@@ -108,6 +108,8 @@
   .pay-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
   .pay-kpis .wide{grid-column:1 / -1}
   .empty{padding:26px 14px;text-align:center;color:var(--fg2);font-size:13px}
+  .stale{width:100%;margin:0 0 12px;padding:11px;border:1px solid var(--warn);border-radius:10px;
+    background:rgba(255,193,7,.12);color:var(--warn);font-size:13px;font-weight:700}
   .caption{color:var(--fg2);font-size:10px;margin:-6px 2px 12px}
   .n .up,.n .down,.n .flat{font-weight:700}
   .row .val small.cmp{font-size:11px}
@@ -171,6 +173,8 @@
       <button class="icon-btn" id="reload">🔄 更新</button>
     </header>
 
+    <button class="stale" id="stale" hidden>新しい画面があります。タップして読み込み直す</button>
+
     <div id="salesKpis">
       <div class="kpis">
         <div class="kpi" style="--c:var(--success)">
@@ -213,7 +217,7 @@
 "use strict";
 const STORE_KEY = "sales-board-pass";
 // 公開時に sales_publish.py が版（ハッシュ）に置き換える
-const PAGE_REV = "03be75fdaef9";
+const PAGE_REV = "c1dac01c217c";
 let DATA = null, TAB = "acc";
 
 const $ = id => document.getElementById(id);
@@ -576,12 +580,18 @@ function render(){
 // URL にクエリを付けるとキャッシュを通らずに新しいページが取れる。
 function reloadIfStale(data){
   const rev = data && data.page_rev;
-  if (!rev || rev === PAGE_REV || PAGE_REV.startsWith("__")) return false;
-  const tried = (() => { try { return sessionStorage.getItem("sales-board-rev"); } catch (_) { return null; } })();
-  if (tried === rev) return false;  // 読み直しても変わらなければ繰り返さない
-  try { sessionStorage.setItem("sales-board-rev", rev); } catch (_) {}
-  location.replace(location.pathname + "?v=" + rev);
-  return true;
+  if (!rev || rev === PAGE_REV || PAGE_REV.startsWith("__")) { $("stale").hidden = true; return false; }
+  // 公開直後は GitHub Pages の反映（1〜2分）が終わるまで古い版が返ることがあるので、
+  // 1回で諦めず3回まで読み直す。毎回別のURLにしてキャッシュを通さない
+  const key = "sales-board-rev:" + rev;
+  const tries = (() => { try { return +(sessionStorage.getItem(key) || 0); } catch (_) { return 9; } })();
+  if (tries < 3) {
+    try { sessionStorage.setItem(key, String(tries + 1)); } catch (_) {}
+    location.replace(location.pathname + "?v=" + rev + "&t=" + Date.now());
+    return true;
+  }
+  $("stale").hidden = false;  // それでも古いままなら、手動で読み直すボタンを出す
+  return false;
 }
 
 function boot(data){
@@ -620,6 +630,9 @@ $("lockForm").addEventListener("submit", async e => {
 });
 
 $("ym").addEventListener("change", render);
+$("stale").addEventListener("click", () => {
+  location.replace(location.pathname + "?v=" + Date.now() + "&t=" + Date.now());
+});
 document.querySelectorAll(".tabs button").forEach(b => {
   b.addEventListener("click", () => {
     document.querySelectorAll(".tabs button")
