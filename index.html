@@ -217,7 +217,7 @@
 "use strict";
 const STORE_KEY = "sales-board-pass";
 // 公開時に sales_publish.py が版（ハッシュ）に置き換える
-const PAGE_REV = "c1dac01c217c";
+const PAGE_REV = "49d54ec4e885";
 let DATA = null, TAB = "acc";
 
 const $ = id => document.getElementById(id);
@@ -490,7 +490,7 @@ function viewPayments(ym){
       slashDate(pm.due) + '<br>まだ予想を出せるデータがありません</div></div>' + paymentHistory(P);
   }
 
-  // 分配の流れ：入金額 → アカウント主に支払う／自分達の取り分 → 1人あたり／神崎の取り分
+  // 分配の流れ：入金額 → アカウント主に支払う／自分達の取り分 → 1人あたり／差し引き後の個人の取り分
   const pd = P.person_deduct;
   let html = '<div class="card">' + statusHtml(ym, pm, P.pay_rate) +
     '<div class="frow top"><div class="k">' + L_PAID + ' 合計' + (fc ? "（予想）" : "") +
