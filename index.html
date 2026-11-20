@@ -217,7 +217,7 @@
 "use strict";
 const STORE_KEY = "sales-board-pass";
 // 公開時に sales_publish.py が版（ハッシュ）に置き換える
-const PAGE_REV = "49d54ec4e885";
+const PAGE_REV = "6c09f37f7b53";
 let DATA = null, TAB = "acc";
 
 const $ = id => document.getElementById(id);
@@ -504,7 +504,7 @@ function viewPayments(ym){
       '<small>自分達の取り分の半分</small></div><b>' + yen2(pm.per_person) + '</b></div>' +
     (!pd ? '' :
       '<div class="frow l2 hl p2"><div class="k"><span class="tw">└</span>' + pd.name +
-      '<small>1人あたり − ' + pd.account + 'の自分達の取り分</small></div><b>' +
+      '<small>' + (pm.deduct_formula ? pm.deduct_formula : '1人あたり − ' + pd.account + 'の自分達の取り分') + '</small></div><b>' +
       (pm.deducted_person === null || pm.deducted_person === undefined ? "未取得" : yen2(pm.deducted_person)) +
       '</b></div>') +
     (pm.carry_total ? '<div class="note">次月繰越 ' + yen(pm.carry_total) + '（' +
